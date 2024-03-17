@@ -9,7 +9,7 @@
 # 1  Here is a list of shared contributors over approximately 
 a year (this is from GitHub documentation).
 1. [ api link repositoriesContributedTo graphQL](https://docs.github.com/en/graphql/reference/objects#repositoryconnection)
-2. [discusion for 1 yesr](https://github.com/orgs/community/discussions/24350)
+2. [discussion for 1 yesr](https://github.com/orgs/community/discussions/24350)
 
 ![topResponse_1](https://github.com/Sega-128/topContributor/assets/52979646/d9b60767-d332-434a-b2b2-ade09853d80a)
 
