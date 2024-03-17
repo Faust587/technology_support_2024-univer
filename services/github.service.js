@@ -1,27 +1,27 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
-const Fastq = require("fastq");
-const { Github: GithubАdapter } = require("../adapter/github.adapter");
+const Fastq = require('fastq');
+const { Github: GithubAdapter } = require('../adapter/github.adapter');
 
 // TODO refactor add constants
-const STATISTICS_TYPE = { year: "year", all: "all" };
+const STATISTICS_TYPE = { year: 'year', all: 'all' };
 
 class Github {
- async getTopRepositories({ repo, owner, type }) {
+ async getTopRepositories({ repos, owners, type }) {
   // TODO refactor
   let responses;
-  if (type == STATISTICS_TYPE.year) {
-   response = await this.getTopRepositoriesLastYear({ ownеr, repos });
-  } else if (type == STATISTICS_TYPE.all) {
-   response = await this.getTopRepositoriesAll({ owners, repо });
+  if (type === STATISTICS_TYPE.year) {
+   responses = await this.getTopRepositoriesLastYear({ owners, repos });
+  } else if (type === STATISTICS_TYPE.all) {
+   responses = await this.getTopRepositoriesAll({ owners, repos });
   }
-  return { data: responses, count: response.length };
+  return { data: responses, count: responses.length };
  }
 
- // recently = ~1year, check documentation Github api
+ // recently = ~1year, check documentation GitHub api
  async getTopRepositoriesLastYear({ repo, owner }) {
   const userContributors = await this.#getUserContributors({ repo, owner });
   return this.getRepoContributedToLastYear({ repo, owner, userContributors });
  }
+
  async getTopRepositoriesAll({ repo, owner }) {
   const contributors = await this.getUserContributors({ repo, owner });
   const topDuplicates = await this.#getRepoContributedToLastYear({
@@ -32,10 +32,10 @@ class Github {
   });
 
   const countContributors = {};
-  const queueGetuserRepoUniq = Fastq.promise(async (task) => {
-   const { contributors: localContributors, owner, repo: _repo, url } = await task();
+  const queueGetUserRepoUniq = Fastq.promise(async (task) => {
+   const { contributors: localContributors, owners, repo: _repo, url } = await task();
 
-   const fullName = `${owner}_${_repo}`;
+   const fullName = `${owners}_${_repo}`;
 
    localContributors.forEach((obj) => {
     const { login } = obj;
@@ -55,17 +55,17 @@ class Github {
   }, 20);
 
   for (const repositoryTop of topDuplicates) {
-   queueGetuserRepoUniq.push(async () => {
-    const { owner, name } = repositoryTop;
+   queueGetUserRepoUniq.push(async () => {
+    const { owner: repoOwner, name } = repositoryTop;
 
-    const localContributors = await this.#getUserContributors({ repo: name, owner });
+    const localContributors = await this.#getUserContributors({ repo: name, owner: repoOwner });
 
     return { contributors: localContributors, owner, repo: name, url: repositoryTop.url };
    });
   }
 
   await new Promise((resolve) => {
-   queueGetuserRepoUniq.drain = resolve;
+   queueGetUserRepoUniq.drain = resolve;
   });
 
   const countsArrayUser = Object.keys(countContributors).map((name) => ({ ...countContributors[name] }));
@@ -76,22 +76,23 @@ class Github {
 
   return topDuplicatesUSerinRepo;
  }
+
  async #getRepoContributedToLastYear({ repo, count = 5, userContributors }) {
   const countsRepository = {};
-  const queueGetuserRepo = Fastq.promise(async (task) => {
+  const queueGetUserRepo = Fastq.promise(async (task) => {
    const repos = await task();
 
    repos.forEach((obj) => {
     const url = new URL(obj.url);
 
-    const owner = url.pathname.split("/")[1];
-    const repositoryName = url.pathname.split("/")[2];
+    const owner = url.pathname.split('/')[1];
+    const repositoryName = url.pathname.split('/')[2];
     // TODO refactor
-    if (repositoryName != repo) {
+    if (repositoryName !== repo) {
      const fullName = `${owner}_${repositoryName}`;
 
      if (countsRepository[fullName]) {
-      countsRepository[fullName].count++;
+      countsRepository[fullName].count += 1;
      } else {
       countsRepository[fullName] = {
        count: 1,
@@ -107,13 +108,13 @@ class Github {
   }, 20);
 
   for (const contributor of userContributors) {
-   queueGetuserRepo.push(async () => {
+   await queueGetUserRepo.push(async () => {
     return this.#getUserRepo(contributor.login);
    });
   }
 
   await new Promise((resolve) => {
-   queueGetuserRepo.drain = resolve;
+   queueGetUserRepo.drain = resolve;
   });
 
   const countsArray = Object.keys(countsRepository).map((name) => ({
@@ -124,11 +125,12 @@ class Github {
 
   return topDuplicates;
  }
+
  async #getUserRepo(username) {
   try {
-   let querys = `
+   const query = `
       {
-        user(login: "${usernam}") {
+        user(login: "${username}") {
           repositoriesContributedTo(first: 99) {
             nodes {
               name
@@ -145,20 +147,20 @@ class Github {
    throw new Error(`Failed to fetch repositories for ${username}: ${error.message}`);
   }
  }
+
  async #getUserContributors({ repo, owner }) {
   let page = 1;
   const contributors = [];
 
   while (true) {
-   let page = 0;
-   const data = await GithubAdapter.getContributors({ page, repo, owner, type: "all" });
+   const data = await GithubAdapter.getContributors({ page, repo, owner, type: 'all' });
    contributors.push(...data);
-   if (data.length == 0 || data.length < 100) break;
-   page++;
+   if (data.length === 0 || data.length < 100) break;
+   page += 1;
   }
 
   return contributors.filter((_user) => {
-   return _user.type == "User";
+   return _user.type === 'User';
   });
  }
 }
